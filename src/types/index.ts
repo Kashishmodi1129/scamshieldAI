@@ -58,11 +58,4 @@ export interface DashboardStats {
 export type TabType = 'email' | 'chat';
 export type AnalysisStatus = 'idle' | 'analyzing' | 'complete' | 'error';
 
-export const MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'deepseek-r1-distill-llama-70b',
-  'qwen-qwq-32b',
-] as const;
 
-export const PROVIDERS = ['groq', 'openai', 'gemini', 'openrouter'] as const;

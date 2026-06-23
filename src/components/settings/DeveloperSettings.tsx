@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { DeveloperSettings as Settings } from '../../types';
 import { api } from '../../services/api';
-import { MODELS } from '../../types';
 
 interface Props {
   settings: Settings;
@@ -28,9 +27,9 @@ export function DeveloperSettings({ settings, onSave }: Props) {
     setTestResult(null);
     try {
       const res = await api.testConnection({
-        provider: local.provider,
+        provider: 'groq',
         api_key: local.api_key,
-        model: local.selected_model,
+        model: 'llama-3.3-70b-versatile',
       });
       setTestResult(res);
     } catch (err) {
@@ -52,29 +51,6 @@ export function DeveloperSettings({ settings, onSave }: Props) {
       </div>
 
       <div className="space-y-8">
-        {/* AI Provider */}
-        <div className="glass-card rounded-[32px] p-8">
-          <h3 className="text-lg font-bold mb-6">AI Provider</h3>
-          <div className="grid grid-cols-4 gap-3">
-            {['groq', 'openai', 'gemini', 'openrouter'].map((p) => (
-              <button
-                key={p}
-                onClick={() => handleChange('provider', p)}
-                className={`px-4 py-3 rounded-xl text-sm font-bold border transition-all ${
-                  local.provider === p
-                    ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
-                    : 'bg-slate-900/50 text-gray-500 border-white/10 hover:text-white'
-                }`}
-              >
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </button>
-            ))}
-          </div>
-          {local.provider !== 'groq' && (
-            <p className="text-xs text-yellow-400 mt-3">Coming soon — only Groq is currently available.</p>
-          )}
-        </div>
-
         {/* API Key */}
         <div className="glass-card rounded-[32px] p-8">
           <h3 className="text-lg font-bold mb-6">API Key</h3>
@@ -83,7 +59,7 @@ export function DeveloperSettings({ settings, onSave }: Props) {
               type={showKey ? 'text' : 'password'}
               value={local.api_key}
               onChange={(e) => handleChange('api_key', e.target.value)}
-              placeholder={local.provider === 'groq' ? 'gsk_your_groq_api_key' : 'Enter your API key'}
+              placeholder="gsk_your_groq_api_key"
               className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-3 px-4 pr-24 text-gray-300 focus:border-scam-cyan outline-none font-mono text-sm"
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
@@ -112,20 +88,6 @@ export function DeveloperSettings({ settings, onSave }: Props) {
               {testResult.message}
             </div>
           )}
-        </div>
-
-        {/* Model Selection */}
-        <div className="glass-card rounded-[32px] p-8">
-          <h3 className="text-lg font-bold mb-6">Model</h3>
-          <select
-            value={local.selected_model}
-            onChange={(e) => handleChange('selected_model', e.target.value)}
-            className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-3 px-4 text-gray-300 focus:border-scam-cyan outline-none"
-          >
-            {MODELS.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
         </div>
 
         {/* Detection Mode */}
