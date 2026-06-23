@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { LinkAnalysis } from '../types';
 import { analyzeUrl, extractUrls } from '../services/linkAnalysis';
+import { useSettings } from '../hooks/useSettings';
+import { api } from '../services/api';
 import { Badge } from '../components/ui/Badge';
-import { RiskScore } from '../components/analyze/RiskScore';
 
 const COLORS = {
   'Safe': { text: 'text-green-400', label: 'Safe Link' },
@@ -15,8 +16,12 @@ export function LinkAnalyzerPage() {
   const [analysis, setAnalysis] = useState<LinkAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const { settings } = useSettings();
 
-  const handleAnalyze = () => {
+  const hasApiKey = settings.api_key.length > 0;
+
+  const handleAnalyze = async () => {
     const trimmed = input.trim();
     if (!trimmed) {
       setError('Please paste a URL to analyze.');
@@ -26,15 +31,27 @@ export function LinkAnalyzerPage() {
     setAnalyzing(true);
     setError(null);
 
-    setTimeout(() => {
+    if (aiEnabled && hasApiKey) {
       try {
-        const result = analyzeUrl(trimmed);
-        setAnalysis(result);
-      } catch {
-        setError('Could not parse this URL. Please check it and try again.');
+        const res = await api.analyzeLink(trimmed, true);
+        setAnalysis(res.link_analysis);
+      } catch (err) {
+        const fallback = analyzeUrl(trimmed);
+        setAnalysis(fallback);
+        setError('AI analysis failed — showing pattern-based results only.');
       }
       setAnalyzing(false);
-    }, 400);
+    } else {
+      setTimeout(() => {
+        try {
+          const result = analyzeUrl(trimmed);
+          setAnalysis(result);
+        } catch {
+          setError('Could not parse this URL. Please check it and try again.');
+        }
+        setAnalyzing(false);
+      }, 400);
+    }
   };
 
   const handleExtractFromText = () => {
@@ -82,6 +99,33 @@ export function LinkAnalyzerPage() {
               Enter a URL
             </div>
 
+            <div className="flex items-center justify-between mb-4 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setAiEnabled(!aiEnabled)}
+                  className={`relative w-10 h-6 rounded-full transition-colors ${
+                    aiEnabled ? 'bg-indigo-500' : 'bg-slate-700'
+                  }`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    aiEnabled ? 'translate-x-4' : 'translate-x-0'
+                  }`} />
+                </button>
+                <div>
+                  <p className="text-sm font-semibold text-gray-200">Enable AI Analysis</p>
+                  <p className="text-[10px] text-gray-500">Powered by Groq LLM — deeper analysis</p>
+                </div>
+              </div>
+              {aiEnabled && !hasApiKey && (
+                <a
+                  href="/developer-settings"
+                  className="text-[10px] text-yellow-400 hover:text-yellow-300 font-medium underline underline-offset-2"
+                >
+                  Add API key
+                </a>
+              )}
+            </div>
+
             <div className="relative mb-4">
               <input
                 type="text"
@@ -118,7 +162,9 @@ export function LinkAnalyzerPage() {
             <div className="glass-card rounded-[40px] flex items-center justify-center min-h-[200px]">
               <div className="flex flex-col items-center gap-4">
                 <div className="w-10 h-10 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm text-gray-400">Analyzing URL structure...</p>
+                <p className="text-sm text-gray-400">
+                  {aiEnabled ? 'Running AI analysis...' : 'Analyzing URL structure...'}
+                </p>
               </div>
             </div>
           )}
@@ -148,7 +194,7 @@ export function LinkAnalyzerPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
                     <p className="text-2xl font-bold text-white">{analysis.risk_score}</p>
-                    <p className="text-[10px] text-gray-500 mt-1 uppercase">Risk Score</p>
+                    <p className="text-[10px] text-gray-500 mt-1 uppercase">Pattern Risk Score</p>
                   </div>
                   <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
                     <p className="text-2xl font-bold text-white">{passed}/{total}</p>
@@ -168,7 +214,7 @@ export function LinkAnalyzerPage() {
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 mb-6">
                   <p className="text-[10px] tracking-widest font-bold text-gray-500 uppercase mb-3">Issues Detected</p>
                   {failedChecks.length === 0 ? (
                     <div className="flex items-start gap-3 p-3 rounded-xl bg-green-900/10 border border-green-500/20">
@@ -190,6 +236,70 @@ export function LinkAnalyzerPage() {
                     ))
                   )}
                 </div>
+
+                {analysis.ai_explanation && (
+                  <div className="border-t border-white/5 pt-6 space-y-4">
+                    <p className="text-[10px] tracking-widest font-bold text-indigo-400 uppercase flex items-center gap-2">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                      </svg>
+                      AI Analysis
+                    </p>
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20 text-center">
+                        <p className="text-lg font-bold text-indigo-400">{analysis.ai_risk_score ?? '-'}</p>
+                        <p className="text-[10px] text-gray-500 mt-1 uppercase">AI Risk Score</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20 text-center">
+                        <p className="text-lg font-bold text-indigo-400">
+                          {analysis.ai_confidence != null ? `${Math.round(analysis.ai_confidence * 100)}%` : '-'}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-1 uppercase">Confidence</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20 text-center">
+                        <p className={`text-lg font-bold ${
+                          analysis.ai_confidence != null && analysis.ai_confidence >= 0.7
+                            ? 'text-green-400'
+                            : 'text-yellow-400'
+                        }`}>
+                          {analysis.ai_confidence != null
+                            ? analysis.ai_confidence >= 0.7 ? 'Reliable' : 'Low'
+                            : '-'}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-1 uppercase">Reliability</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] tracking-widest font-bold text-gray-500 uppercase mb-2">Explanation</p>
+                      <p className="text-sm text-gray-300 leading-relaxed">{analysis.ai_explanation}</p>
+                    </div>
+                    {analysis.ai_tactics && analysis.ai_tactics.length > 0 && (
+                      <div>
+                        <p className="text-[10px] tracking-widest font-bold text-gray-500 uppercase mb-2">Detected Tactics</p>
+                        <div className="flex flex-wrap gap-2">
+                          {analysis.ai_tactics.map((t, i) => (
+                            <span key={i} className="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[11px] font-medium text-indigo-300">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {analysis.ai_recommendations && analysis.ai_recommendations.length > 0 && (
+                      <div>
+                        <p className="text-[10px] tracking-widest font-bold text-gray-500 uppercase mb-2">Recommendations</p>
+                        <ul className="space-y-1.5">
+                          {analysis.ai_recommendations.map((r, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-400">
+                              <span className="text-cyan-500 mt-0.5">→</span>
+                              {r}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

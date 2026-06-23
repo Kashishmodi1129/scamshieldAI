@@ -11,6 +11,11 @@ export interface LinkAnalysis {
   risk_level: 'Safe' | 'Suspicious' | 'Likely Malicious';
   is_shortened: boolean;
   checks: LinkCheck[];
+  ai_explanation?: string;
+  ai_risk_score?: number;
+  ai_confidence?: number;
+  ai_tactics?: string[];
+  ai_recommendations?: string[];
 }
 
 export interface AnalysisResult {

@@ -81,8 +81,41 @@ def analyze_conversation(req: AnalyzeRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/analyze-link", response_model=LinkAnalyzeResponse)
-def analyze_single_link(req: LinkAnalyzeRequest):
+def analyze_single_link(req: LinkAnalyzeRequest, db: Session = Depends(get_db)):
     result = analyze_url(req.url)
+
+    ai_explanation = None
+    ai_risk_score = None
+    ai_confidence = None
+    ai_tactics = None
+    ai_recommendations = None
+
+    if req.use_ai:
+        settings = db.query(DeveloperSettings).first()
+        if settings and settings.api_key_encrypted:
+            key = decrypt(settings.api_key_encrypted)
+            if key:
+                url_prompt = (
+                    settings.custom_prompt
+                    or "You are a senior cybersecurity analyst specializing in phishing and scam URLs. "
+                       "Analyze the following URL for scam indicators — typosquatting, phishing patterns, "
+                       "social engineering tactics, suspicious redirects, credential harvesting, etc. "
+                       "Return ONLY valid JSON with: risk_score (0-100), risk_level, category, "
+                       "tactics (list), explanation (detailed analysis), recommendations (list)."
+                )
+                llm_result = analyze_with_llm(
+                    f"[URL TO ANALYZE]: {req.url}",
+                    settings.api_key_encrypted,
+                    settings.selected_model,
+                    url_prompt,
+                )
+                if llm_result:
+                    ai_explanation = llm_result.get("explanation")
+                    ai_risk_score = llm_result.get("risk_score")
+                    ai_confidence = llm_result.get("confidence")
+                    ai_tactics = llm_result.get("tactics", [])
+                    ai_recommendations = llm_result.get("recommendations", [])
+
     return LinkAnalyzeResponse(
         link_analysis=LinkAnalysisResult(
             url=result["url"],
@@ -91,5 +124,10 @@ def analyze_single_link(req: LinkAnalyzeRequest):
             risk_level=result["risk_level"],
             is_shortened=result["is_shortened"],
             checks=[LinkCheckResult(**c) for c in result["checks"]],
+            ai_explanation=ai_explanation,
+            ai_risk_score=ai_risk_score,
+            ai_confidence=ai_confidence,
+            ai_tactics=ai_tactics,
+            ai_recommendations=ai_recommendations,
         )
     )

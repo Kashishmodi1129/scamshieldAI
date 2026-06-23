@@ -20,6 +20,11 @@ class LinkAnalysisResult(BaseModel):
     risk_level: str
     is_shortened: bool
     checks: list[LinkCheckResult]
+    ai_explanation: str | None = None
+    ai_risk_score: int | None = None
+    ai_confidence: float | None = None
+    ai_tactics: list[str] | None = None
+    ai_recommendations: list[str] | None = None
 
 class AnalysisResult(BaseModel):
     risk_score: int
@@ -39,6 +44,7 @@ class AnalyzeResponse(BaseModel):
 
 class LinkAnalyzeRequest(BaseModel):
     url: str
+    use_ai: bool = False
 
 class LinkAnalyzeResponse(BaseModel):
     link_analysis: LinkAnalysisResult

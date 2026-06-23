@@ -46,10 +46,10 @@ export const api = {
       body: JSON.stringify(settings),
     }),
 
-  analyzeLink: (url: string) =>
+  analyzeLink: (url: string, useAi?: boolean) =>
     request<{ link_analysis: import('../types').LinkAnalysis }>('/analyze-link', {
       method: 'POST',
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, use_ai: useAi ?? false }),
     }),
 
   getStats: () => request<import('../types').DashboardStats>('/stats'),
